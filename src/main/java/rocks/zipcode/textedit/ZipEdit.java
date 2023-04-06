@@ -3,7 +3,9 @@ package rocks.zipcode.textedit;
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.filechooser.FileSystemView;
+import javax.swing.text.JTextComponent;
 import java.awt.*;
+import java.awt.datatransfer.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -71,6 +73,29 @@ public final class ZipEdit extends JFrame implements ActionListener{
         menu_file.add(menuitem_save);
         menu_file.add(menuitem_quit);
 
+        JMenu edit_file = new JMenu("Edit");
+
+
+
+
+        JMenuItem edititem_cut = new JMenuItem("Cut");
+        JMenuItem edititem_copy = new JMenuItem("Copy");
+        JMenuItem edititem_paste = new JMenuItem("Paste");
+        JMenuItem edititem_find = new JMenuItem("Find");
+
+        edititem_cut.addActionListener(this);
+        edititem_copy.addActionListener(this);
+        edititem_paste.addActionListener(this);
+        edititem_find.addActionListener(this);
+
+        menu_main.add(edit_file);
+
+
+        edit_file.add(edititem_cut);
+        edit_file.add(edititem_copy);
+        edit_file.add(edititem_paste);
+        edit_file.add(edititem_find);
+
         frame.setJMenuBar(menu_main);
 
         frame.setVisible(true);
@@ -95,16 +120,17 @@ public final class ZipEdit extends JFrame implements ActionListener{
                 File f = new File(jfc.getSelectedFile().getAbsolutePath());
                 this.filename = jfc.getSelectedFile().getName();
                 this.frame.setTitle(this.frameTitle());
-                try{
+                try {
                     FileReader read = new FileReader(f);
                     Scanner scan = new Scanner(read);
-                    while(scan.hasNextLine()){
+                    while (scan.hasNextLine()) {
                         String line = scan.nextLine() + "\n";
                         ingest = ingest + line;
                     }
                     area.setText(ingest);
+                } catch (FileNotFoundException ex) {
+                    ex.printStackTrace();
                 }
-                catch ( FileNotFoundException ex) { ex.printStackTrace(); }
             }
             // SAVE
         } else if (ae.equals("Save")) {
@@ -118,12 +144,46 @@ public final class ZipEdit extends JFrame implements ActionListener{
                 out.close();
             } catch (FileNotFoundException ex) {
                 Component f = null;
-                JOptionPane.showMessageDialog(f,"File not found.");
+                JOptionPane.showMessageDialog(f, "File not found.");
             } catch (IOException ex) {
                 Component f = null;
-                JOptionPane.showMessageDialog(f,"Error.");
+                JOptionPane.showMessageDialog(f, "Error.");
             }
-        } else if (ae.equals("New")) {
+        }else if (ae.equals("Cut")) {
+            String selectedText = area.getSelectedText();
+            Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+            StringSelection selection = new StringSelection(selectedText);
+            clipboard.setContents(selection, null);
+            area.replaceSelection("");
+
+        }else if (ae.equals("Copy")){
+            String s = area.getText();
+            StringSelection ss = new StringSelection(s);
+            this.getToolkit().getSystemClipboard().setContents(ss, ss);
+
+        }else if (ae.equals("Paste")) {
+            Clipboard c = this.getToolkit().getSystemClipboard();
+            Transferable t = c.getContents(this);
+            try {
+                String s = (String) t.getTransferData(DataFlavor.stringFlavor);
+                area.setText(s);
+            } catch (Exception z) {
+                this.getToolkit().beep();
+                return;
+            }
+        }else if (ae.equals("Find")) {
+            String searchText = JOptionPane.showInputDialog(area, "Find:");
+            if(searchText != null && !searchText.isEmpty()) {
+                String content = area.getText();
+                int index = content.indexOf(searchText);
+                if(index != -1) {
+                    area.setCaretPosition(index);
+                    area.moveCaretPosition(index + searchText.length());
+                } else {
+                    JOptionPane.showMessageDialog(area, "Text not found.");
+                }
+            }
+        }else if (ae.equals("New")) {
             area.setText("");
         } else if (ae.equals("Quit")) {
             System.exit(0);
