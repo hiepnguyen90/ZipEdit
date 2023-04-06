@@ -2,12 +2,13 @@ package rocks.zipcode.textedit;
 
 import javax.swing.*;
 import javax.swing.border.Border;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileSystemView;
 import javax.swing.text.JTextComponent;
 import java.awt.*;
 import java.awt.datatransfer.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.awt.event.*;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -17,11 +18,16 @@ import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public final class ZipEdit extends JFrame implements ActionListener{
+public final class ZipEdit extends JFrame implements ActionListener {
     private JTextArea area;
     private JFrame frame;
     private String filename = "untitled";
-    public ZipEdit() {  }
+    private int returnValue;
+
+    private int operation;
+
+    public ZipEdit() {
+    }
 
     public static void main(String[] args) {
         ZipEdit runner = new ZipEdit();
@@ -36,7 +42,8 @@ public final class ZipEdit extends JFrame implements ActionListener{
         // Try to default to whatever the host system prefers
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | UnsupportedLookAndFeelException ex) {
+        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException |
+                 UnsupportedLookAndFeelException ex) {
             Logger.getLogger(ZipEdit.class.getName()).log(Level.SEVERE, null, ex);
         }
 
@@ -76,8 +83,6 @@ public final class ZipEdit extends JFrame implements ActionListener{
         JMenu edit_file = new JMenu("Edit");
 
 
-
-
         JMenuItem edititem_cut = new JMenuItem("Cut");
         JMenuItem edititem_copy = new JMenuItem("Copy");
         JMenuItem edititem_paste = new JMenuItem("Paste");
@@ -100,11 +105,33 @@ public final class ZipEdit extends JFrame implements ActionListener{
 
         frame.setVisible(true);
 
+        frame.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent windowEvent) {
+                int option = JOptionPane.showConfirmDialog(frame, "Do you want to save changes?", "Save changes", JOptionPane.YES_NO_CANCEL_OPTION);
+                if (option == JOptionPane.YES_OPTION) {
+                    // save changes
+                    JFileChooser jfc = new JFileChooser(FileSystemView.getFileSystemView().getHomeDirectory());
+                    jfc.setDialogTitle("Choose destination.");
+                    jfc.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
+                    int returnValue = jfc.showSaveDialog(null);
+                    Save(jfc);
+                    JOptionPane.showMessageDialog(null, "File saved.");
+                    System.exit(0);
+                } else if (option == JOptionPane.NO_OPTION) {
+                    System.exit(0);
+                } else {
+                    // do nothing (user cancelled)
+                }
+            }
+        });
+
     }
 
     public String frameTitle() {
-        return "Zip Edit ("+this.filename+")";
+        return "Zip Edit (" + this.filename + ")";
     }
+
     @Override
     public void actionPerformed(ActionEvent e) {
         String ingest = "";
@@ -131,6 +158,7 @@ public final class ZipEdit extends JFrame implements ActionListener{
                 } catch (FileNotFoundException ex) {
                     ex.printStackTrace();
                 }
+                setDefaultCloseOperation(operation);
             }
             // SAVE
         } else if (ae.equals("Save")) {
@@ -149,46 +177,90 @@ public final class ZipEdit extends JFrame implements ActionListener{
                 Component f = null;
                 JOptionPane.showMessageDialog(f, "Error.");
             }
-        }else if (ae.equals("Cut")) {
+        } else if (ae.equals("Cut")) {
             String selectedText = area.getSelectedText();
             Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
             StringSelection selection = new StringSelection(selectedText);
             clipboard.setContents(selection, null);
             area.replaceSelection("");
 
-        }else if (ae.equals("Copy")){
+        } else if (ae.equals("Copy")) {
             String s = area.getText();
             StringSelection ss = new StringSelection(s);
             this.getToolkit().getSystemClipboard().setContents(ss, ss);
 
-        }else if (ae.equals("Paste")) {
+        } else if (ae.equals("Paste")) {
             Clipboard c = this.getToolkit().getSystemClipboard();
             Transferable t = c.getContents(this);
             try {
                 String s = (String) t.getTransferData(DataFlavor.stringFlavor);
-                area.setText(s);
+                area.insert(s, area.getCaretPosition());
             } catch (Exception z) {
                 this.getToolkit().beep();
                 return;
             }
-        }else if (ae.equals("Find")) {
+        } else if (ae.equals("Find")) {
             String searchText = JOptionPane.showInputDialog(area, "Find:");
-            if(searchText != null && !searchText.isEmpty()) {
+            if (searchText != null && !searchText.isEmpty()) {
                 String content = area.getText();
                 int index = content.indexOf(searchText);
-                if(index != -1) {
+                if (index != -1) {
                     area.setCaretPosition(index);
                     area.moveCaretPosition(index + searchText.length());
                 } else {
                     JOptionPane.showMessageDialog(area, "Text not found.");
                 }
             }
-        }else if (ae.equals("New")) {
+        } else if (ae.equals("New")) {
             area.setText("");
         } else if (ae.equals("Quit")) {
-            System.exit(0);
+            int option = JOptionPane.showConfirmDialog(this, "Do you want to save changes?", "Save changes", JOptionPane.YES_NO_CANCEL_OPTION);
+            if (option == JOptionPane.YES_OPTION) {
+                returnValue = jfc.showSaveDialog(null);
+                Save(jfc);
+                JOptionPane.showMessageDialog(null, "File saved.");
+                System.exit(0);
+            } else if (option == JOptionPane.NO_OPTION) {
+                System.exit(0);
+            } else {
+                // do nothing (user cancelled)
+            }
         }
     }
-}
+
+
+//    @Override
+//   public void setDefaultCloseOperation(int operation) {
+//        if(operation == JFrame.EXIT_ON_CLOSE) {
+//        int option = JOptionPane.showConfirmDialog(this, "Do you want save changes?", "Save Changes", JOptionPane.YES_OPTION);
+//            if (option == JOptionPane.YES_OPTION) {
+//                super.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//            } else if (option == JOptionPane.NO_OPTION) {
+//                super.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//            } else {
+//
+//            }
+//        } else {
+//            super.setDefaultCloseOperation(operation);
+//    }
+        public void Save (JFileChooser jfc){
+            this.filename = jfc.getSelectedFile().getName();
+            this.frame.setTitle(this.frameTitle());
+            try {
+                File f = new File(jfc.getSelectedFile().getAbsolutePath());
+                FileWriter out = new FileWriter(f);
+                out.write(area.getText());
+                out.close();
+            } catch (FileNotFoundException ex) {
+                Component f = null;
+                JOptionPane.showMessageDialog(f, "File not found.");
+            } catch (IOException ex) {
+                Component f = null;
+                JOptionPane.showMessageDialog(f, "Error.");
+            }
+
+        }
+    }
+
 
 
