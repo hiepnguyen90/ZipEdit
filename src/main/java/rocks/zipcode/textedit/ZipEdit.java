@@ -27,7 +27,12 @@ public final class ZipEdit extends JFrame implements ActionListener {
     private String filename = "untitled";
     Dimension buttonSize = new Dimension(110, 25);
     JToggleButton config_dark;
+    JToggleButton config_autoSave;
+    private final int delay = 1;
+    File currentFile = null;
     boolean darkMode = false;
+    boolean autoSave = true;
+    boolean saved = true;
     private int returnValue;
 
     private int operation;
@@ -42,9 +47,22 @@ public final class ZipEdit extends JFrame implements ActionListener {
         runner.run();
     }
 
+    private class afk implements KeyEventDispatcher {
+
+        @Override
+        public boolean dispatchKeyEvent(KeyEvent e) {
+            if (e.getID() == KeyEvent.KEY_TYPED) {
+                saved = false;
+            }
+            return false;
+        }
+    }
 
     public void run() {
         frame = new JFrame(frameTitle());
+        JFileChooser jfc = new JFileChooser(FileSystemView.getFileSystemView().getHomeDirectory());
+        jfc.setDialogTitle("Choose Destination");
+        jfc.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
 
         // Set the look-and-feel (LNF) of the application
         // Try to default to whatever the host system prefers
@@ -120,7 +138,7 @@ public final class ZipEdit extends JFrame implements ActionListener {
         //dark mode
         config_dark = new JToggleButton();
         config_dark.setPreferredSize(buttonSize);
-        if(darkMode){
+        if (darkMode) {
             config_dark.setText("Dark Mode");
         } else {
             config_dark.setText("Light Mode");
@@ -128,6 +146,18 @@ public final class ZipEdit extends JFrame implements ActionListener {
         config_dark.addActionListener(this);
         config_file.add(config_dark);
 
+        //AUTOSAVE
+
+        config_autoSave = new JToggleButton();
+        config_autoSave.setPreferredSize(buttonSize);
+
+        if (autoSave) {
+            config_autoSave.setText("AutoSave On");
+        } else {
+            config_autoSave.setText("AutoSave Off");
+        }
+        config_autoSave.addActionListener(this);
+        config_file.add(config_autoSave);
 
 
         frame.setJMenuBar(menu_main);
@@ -155,6 +185,44 @@ public final class ZipEdit extends JFrame implements ActionListener {
             }
         });
 
+        KeyboardFocusManager manager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+        manager.addKeyEventDispatcher(new afk());
+        String check;
+        if(autoSave) {
+            check = "On";
+        } else {
+            check = "Off";
+        }
+
+        String message = "Zip Edit (AutoSave "+ check +")";
+        while(true) {
+            // Thread will probably die if it's not rate limited
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            if (autoSave) {
+                // AFK-detector will change saved to false if user puts in any keystrokes
+                if (currentFile != null) {
+                    while (!saved) {
+                        this.frame.setTitle("Zip Edit (Saving...)");
+                        message = "Zip Edit (Saved)";
+                        jfc.setSelectedFile(currentFile);
+                        Save(jfc);
+                        saved = true; // Set saved to true until new keystrokes
+                        // User set delay to wait for new input
+                        try {
+                            Thread.sleep(delay * 1000);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                    this.frame.setTitle(message); // Only change title once changes have been made
+                }
+            } else {
+            }
+        }
     }
 
     public String frameTitle() {
@@ -294,6 +362,16 @@ public final class ZipEdit extends JFrame implements ActionListener {
             area.setForeground(Color.BLACK);
             area.setCaretColor(Color.BLACK);
             darkMode = true;
+        } else if (ae.equals("AutoSave On")){
+            autoSave = !autoSave;
+            config_autoSave.setText("AutoSave Off");
+            System.out.println("AutoSave has turned on");
+
+        } else if (ae.equals("AutoSave Off")){
+            autoSave = !autoSave;
+            config_autoSave.setText("AutoSave On");
+            System.out.println("AutoSave has turned off");
+
         }
     }
 
